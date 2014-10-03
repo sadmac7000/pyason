@@ -19,9 +19,10 @@
 
 #include <Python.h>
 #include <string.h>
-#include "ason/ason.h"
-#include "ason/print.h"
-#include "ason/read.h"
+#include <ason/ason.h>
+#include <ason/print.h>
+#include <ason/read.h>
+#include <ason/namespace.h>
 
 /**
  * ASON value object.
