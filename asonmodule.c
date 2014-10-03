@@ -458,6 +458,6 @@ PyInit_ason(void)
 		return NULL;
 
 	Py_INCREF(&ason_AsonType);
-	PyModule_AddObject(m, "Ason", (PyObject *)&ason_AsonType);
+	PyModule_AddObject(m, "ason", (PyObject *)&ason_AsonType);
 	return m;
 }
