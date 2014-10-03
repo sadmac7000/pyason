@@ -166,8 +166,14 @@ pyobject_to_ason(PyObject *obj)
 	size_t i;
 
 
-	if (PyUnicode_Check(obj))
-		return ason_read("?s", PyUnicode_AsUTF8(obj));
+	if (PyUnicode_Check(obj)) {
+		str_key = PyUnicode_AsUTF8(obj);
+
+		if (! str_key)
+			return NULL;
+
+		return ason_read("?s", str_key);
+	}
 retry:
 	if (PyBool_Check(obj)) {
 		if (obj == Py_False)
@@ -336,6 +342,10 @@ retry:
 
 	if (PyUnicode_Check(obj)) {
 		str_key = PyUnicode_AsUTF8(obj);
+
+		if (! str_key)
+			return NULL;
+
 		return ason_read(str_key);
 	}
 
