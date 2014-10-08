@@ -65,9 +65,32 @@ Ason_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static PyObject *
 Ason_str(Ason *self)
 {
-	char *data = ason_asprint_unicode(self->value);
-	PyObject *ret = Py_BuildValue("s", data);
-	free(data);
+	char *data;
+	long long ldata;
+	double ddata;
+	PyObject *ret;
+
+	switch (ason_type(self->value)) {
+	case ASON_TYPE_STRING:
+		data = ason_string(self->value);
+		ret = Py_BuildValue("s", data);
+		free(data);
+		break;
+	case ASON_TYPE_NUMERIC:
+		ddata = ason_double(self->value);
+		ldata = ason_long(self->value);
+
+		if (ddata != ldata)
+			ret = Py_BuildValue("d", ddata);
+		else
+			ret = Py_BuildValue("L", ldata);
+		break;
+	default:
+		data = ason_asprint_unicode(self->value);
+		ret = Py_BuildValue("s", data);
+		free(data);
+	};
+
 	return ret;
 }
 
