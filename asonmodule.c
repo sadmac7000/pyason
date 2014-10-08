@@ -113,6 +113,7 @@ Ason_repr(Ason *self)
 static PyObject * Ason_intersect(Ason *self, Ason *other);
 static PyObject * Ason_union(Ason *self, Ason *other);
 static PyObject * Ason_complement(Ason *self);
+static PyObject * Ason_compare(PyObject *a, PyObject *b, int op);
 
 /**
  * Method table for ASON value object.
@@ -156,7 +157,7 @@ static PyTypeObject ason_AsonType = {
 	"An ASON value",
 	0,
 	0,
-	0,
+	(richcmpfunc)Ason_compare,
 	0,
 	0,
 	0,
@@ -173,6 +174,9 @@ static PyTypeObject ason_AsonType = {
 	Ason_new
 };
 
+/**
+ * Convert a python value to an ASON value.
+ **/
 static ason_t *
 pyobject_to_ason(PyObject *obj)
 {
@@ -422,6 +426,115 @@ Ason_operate(Ason *self, Ason *other, const char *fmt)
 	ret = PyObject_New(Ason, &ason_AsonType);
 	ret->value = ason_read(fmt, self->value, other->value);
 	return (PyObject *)ret;
+}
+
+/**
+ * Compare two values, one of which is an Ason value.
+ **/
+static PyObject *
+Ason_compare(PyObject *a, PyObject *b, int op)
+{
+	Ason *self = (Ason *)a;
+	ason_t *other;
+	int cmp;
+	char *str_a;
+	char *str_b;
+	double dbl_a;
+	double dbl_b;
+
+	if (! PyObject_TypeCheck(self, &ason_AsonType)) {
+		self = (Ason *)b;
+		if (! PyObject_TypeCheck(self, &ason_AsonType))
+			PyErr_Format(PyExc_TypeError,
+				     "Ason comparator called on non-Ason value");
+
+		if (op == Py_LT)
+			op = Py_GT;
+		if (op == Py_GT)
+			op = Py_LT;
+		if (op == Py_LE)
+			op = Py_GE;
+		if (op == Py_GE)
+			op = Py_LE;
+
+		other = pyobject_to_ason(a);
+	} else {
+		other = pyobject_to_ason(b);
+	}
+
+	if (PyErr_Occurred()) {
+		PyErr_Clear();
+
+		if (op == Py_NE)
+			goto ret_true;
+		if (op == Py_EQ)
+			goto ret_false;
+
+		PyErr_Format(PyExc_TypeError, "Type cannot be compared "
+			     "to Ason value");
+		return NULL;
+	}
+
+	if (ason_check_equal(other, self->value)) {
+		if (op == Py_EQ)
+			goto ret_true;
+		else if (op == Py_NE)
+			goto ret_false;
+		else if (op == Py_GE)
+			goto ret_true;
+		else if (op == Py_LE)
+			goto ret_true;
+	} else {
+		if (op == Py_EQ)
+			goto ret_false;
+		else if (op == Py_NE)
+			goto ret_true;
+		else if (op == Py_GE)
+			op = Py_GT;
+		else if (op == Py_LE)
+			op = Py_LT;
+	}
+
+	if (ason_type(self->value) == ASON_TYPE_STRING &&
+	    ason_type(other) == ASON_TYPE_STRING) {
+		str_a = ason_string(self->value);
+		str_b = ason_string(other);
+		cmp = strcmp(str_a, str_b);
+		free(str_a);
+		free(str_b);
+
+		if (cmp < 0 && op == Py_LT)
+			goto ret_true;
+		else
+			goto ret_false;
+	}
+
+	if (ason_type(self->value) == ASON_TYPE_NUMERIC &&
+	    ason_type(other) == ASON_TYPE_NUMERIC) {
+		dbl_a = ason_double(self->value);
+		dbl_b = ason_double(other);
+
+		if (dbl_a < dbl_b && op == Py_LT)
+			goto ret_true;
+		else
+			goto ret_false;
+	}
+
+	if (op == Py_LT && ason_check_represented_in(self->value, other))
+		goto ret_true;
+	else if (op == Py_LT)
+		goto ret_false;
+	else if (ason_check_represented_in(other, self->value))
+		goto ret_true;
+	else
+		goto ret_false;
+
+ret_true:
+	ason_destroy(other);
+	return Py_True;
+ret_false:
+	ason_destroy(other);
+	return Py_False;
 }
 
 /**
