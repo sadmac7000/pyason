@@ -446,20 +446,89 @@ Ason_operate(Ason *self, Ason *other, const char *fmt)
  * Parse an ASON string.
  **/
 static PyObject *
-ason_parse(PyObject *self, PyObject *args)
+ason_parse(PyObject *self, PyObject *args, PyObject *kwargs)
 {
 	char *string;
 	Ason *ret;
+	ason_ns_t *ns = NULL;
+	PyObject *dictitems;
+	PyObject *item;
+	PyObject *key;
+	char *str_key;
+	size_t size;
+	size_t i;
+	ason_t *ason_item;
+
 
 	if (! PyArg_ParseTuple(args, "s", &string))
 		return NULL;
+
+	if (kwargs) {
+		dictitems = PyDict_Items(kwargs);
+		size = PyList_Size(dictitems);
+
+		ns = ason_ns_create(ASON_NS_RAM, NULL);
+		if (! ns) {
+			PyErr_Format(PyExc_RuntimeError,
+				     "Could not create ASON namespace");
+
+			Py_DECREF(dictitems);
+			return NULL;
+		}
+
+		for (i = 0; i < size; i++) {
+			item = PyList_GetItem(dictitems, i);
+
+			if (! item)
+				break;
+
+			key = PyTuple_GetItem(item, 0);
+
+			if (! key)
+				break;
+
+			item = PyTuple_GetItem(item, 1);
+
+			if (! item)
+				break;
+
+			if (! PyUnicode_Check(key)) {
+				PyErr_Format(PyExc_TypeError,
+					     "Bad keyword list");
+				break;
+			}
+
+			str_key = PyUnicode_AsUTF8(key);
+
+			if (! str_key)
+				break;
+
+			ason_item = pyobject_to_ason(item);
+			if (ason_ns_mkvar(ns, str_key)) {
+				PyErr_Format(PyExc_RuntimeError,
+					     "mkvar error from ASON namespace");
+				break;
+			}
+
+			if (ason_ns_store(ns, str_key, ason_item)) {
+				PyErr_Format(PyExc_RuntimeError,
+					     "store error from ASON namespace");
+				break;
+			}
+		}
+
+		Py_DECREF(dictitems);
+
+		if (i != size)
+			return NULL;
+	}
 
 	ret = PyObject_New(Ason, &ason_AsonType);
 
 	if (! ret)
 		return NULL;
 
-	ret->value = ason_read(string);
+	ret->value = ason_ns_read(ns, string);
 
 	if (ret->value)
 		return (PyObject *)ret;
@@ -614,7 +683,8 @@ Ason_complement(Ason *self)
  * Methods for the ason module.
  **/
 static PyMethodDef asonmodule_methods[] = {
-	{"parse", ason_parse, METH_VARARGS, "Parse a string as an ASON value"},
+	{"parse", (PyCFunction)ason_parse, METH_VARARGS | METH_KEYWORDS,
+		"Parse a string as an ASON value"},
 	{NULL}
 };
 
