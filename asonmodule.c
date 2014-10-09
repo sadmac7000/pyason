@@ -311,32 +311,34 @@ retry:
 			item = PyList_GetItem(obj, i);
 
 			if (! item)
-				return NULL;
+				break;
 
 			key = PyTuple_GetItem(item, 0);
 
 			if (! key)
-				return NULL;
+				break;
 
 			item = PyTuple_GetItem(item, 1);
 
 			if (! item)
-				return NULL;
+				break;
 
 			if (! PyUnicode_Check(key)) {
 				PyErr_Format(PyExc_TypeError,
 			     "Cannot ASONify dict with non-string keys");
-				return NULL;
+				break;
 			}
 
 			tmp1 = pyobject_to_ason(item);
 
 			if (! tmp1)
-				return NULL;
+				break;
 
 			str_key = PyUnicode_AsUTF8(key);
-			if (! key)
-				return NULL;
+			if (! key) {
+				ason_destroy(tmp1);
+				break;
+			}
 
 			tmp2 = ret;
 			ret = ason_read("? : { ?s: ? }", ret, str_key, tmp1);
@@ -344,10 +346,18 @@ retry:
 			ason_destroy(tmp2);
 
 			if (! ret)
-				return NULL;
+				break;
 		}
 
-		return ret;
+		Py_DECREF(obj);
+
+		if (i == size)
+			return ret;
+
+		if (ret)
+			ason_destroy(ret);
+
+		return NULL;
 	}
 
 	if (PyObject_HasAttrString(obj, "__ason__")) {
