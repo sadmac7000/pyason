@@ -433,6 +433,34 @@ Ason_operate(Ason *self, Ason *other, const char *fmt)
 }
 
 /**
+ * Parse an ASON string.
+ **/
+static PyObject *
+ason_parse(PyObject *self, PyObject *args)
+{
+	char *string;
+	Ason *ret;
+
+	if (! PyArg_ParseTuple(args, "s", &string))
+		return NULL;
+
+	ret = PyObject_New(Ason, &ason_AsonType);
+
+	if (! ret)
+		return NULL;
+
+	ret->value = ason_read(string);
+
+	if (ret->value)
+		return (PyObject *)ret;
+
+	Py_DECREF(ret);
+	PyErr_Format(PyExc_TypeError, "Could not parse ASON expression");
+
+	return NULL;
+}
+
+/**
  * Compare two values, one of which is an Ason value.
  **/
 static PyObject *
@@ -573,6 +601,14 @@ Ason_complement(Ason *self)
 }
 
 /**
+ * Methods for the ason module.
+ **/
+static PyMethodDef asonmodule_methods[] = {
+	{"parse", ason_parse, METH_VARARGS, "Parse a string as an ASON value"},
+	{NULL}
+};
+
+/**
  * The ason module itself.
  **/
 static PyModuleDef asonmodule = {
@@ -580,7 +616,7 @@ static PyModuleDef asonmodule = {
 	"ason",
 	"Module for manipulating ASON values.",
 	-1,
-	NULL, NULL, NULL, NULL, NULL
+	asonmodule_methods
 };
 
 /**
