@@ -424,6 +424,10 @@ Ason_operate(Ason *self, Ason *other, const char *fmt)
 	}
 
 	ret = PyObject_New(Ason, &ason_AsonType);
+
+	if (! ret)
+		return NULL;
+
 	ret->value = ason_read(fmt, self->value, other->value);
 	return (PyObject *)ret;
 }
