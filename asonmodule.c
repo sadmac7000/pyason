@@ -23,6 +23,7 @@
 #include <ason/print.h>
 #include <ason/read.h>
 #include <ason/namespace.h>
+#include <ason/iter.h>
 
 /**
  * ASON value object.
@@ -33,12 +34,32 @@ typedef struct {
 } Ason;
 
 /**
+ * Ason iterator object
+ **/
+typedef struct {
+	PyObject_HEAD
+	ason_iter_t *iter;
+	int entered;
+	int in_object;
+} AsonIter;
+
+/**
  * Destroy an Ason python object.
  **/
 static void
 Ason_dealloc(Ason *self)
 {
 	ason_destroy(self->value);
+	Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+/**
+ * Destroy an AsonIter python object.
+ **/
+static void
+AsonIter_dealloc(AsonIter *self)
+{
+	ason_iter_destroy(self->iter);
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -55,6 +76,25 @@ Ason_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		return NULL;
 
 	self->value = ASON_EMPTY;
+
+	return (PyObject *)self;
+}
+
+/**
+ * Allocate an AsonIter object.
+ **/
+static PyObject *
+AsonIter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+	AsonIter *self;
+
+	self = (AsonIter *)type->tp_alloc(type, 0);
+	if (self == NULL)
+		return NULL;
+
+	self->iter = NULL;
+	self->entered = 0;
+	self->in_object = 0;
 
 	return (PyObject *)self;
 }
@@ -114,6 +154,12 @@ static PyObject * Ason_intersect(Ason *self, Ason *other);
 static PyObject * Ason_union(Ason *self, Ason *other);
 static PyObject * Ason_complement(Ason *self);
 static PyObject * Ason_compare(PyObject *a, PyObject *b, int op);
+static PyObject * AsonIter_next(AsonIter *self);
+
+static AsonIter * Ason_iterate(Ason *self);
+
+static int Ason_init(Ason *self, PyObject *args, PyObject *kwds);
+static int AsonIter_init(AsonIter *self, PyObject *args, PyObject *kwds);
 
 /**
  * Method table for ASON value object.
@@ -128,7 +174,12 @@ static PyNumberMethods ason_AsonNumber = {
 	.nb_invert = (unaryfunc)Ason_complement,
 };
 
-static int Ason_init(Ason *self, PyObject *args, PyObject *kwds);
+/**
+ * Method table for AsonIter object.
+ **/
+static PyMethodDef AsonIter_methods[] = {
+	{NULL}
+};
 
 /**
  * Type for ASON value object.
@@ -159,7 +210,7 @@ static PyTypeObject ason_AsonType = {
 	0,
 	(richcmpfunc)Ason_compare,
 	0,
-	0,
+	(getiterfunc)Ason_iterate,
 	0,
 	Ason_methods,
 	0, /* members */
@@ -172,6 +223,50 @@ static PyTypeObject ason_AsonType = {
 	(initproc)Ason_init,
 	0,
 	Ason_new
+};
+
+/**
+ * Type for AsonIter object.
+ **/
+static PyTypeObject ason_AsonIterType = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"ason.AsonIter",
+	sizeof(AsonIter),
+	0,
+	(destructor)AsonIter_dealloc,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	"An iterator for ASON values",
+	0,
+	0,
+	0,
+	0,
+	0,
+	(iternextfunc)AsonIter_next,
+	AsonIter_methods,
+	0, /* members */
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	(initproc)AsonIter_init,
+	0,
+	AsonIter_new
 };
 
 /**
@@ -408,6 +503,115 @@ Ason_init(Ason *self, PyObject *args, PyObject *kwds)
 		return -1;
 
 	return 0;
+}
+
+/**
+ * Initialize an AsonIter object.
+ **/
+static int
+AsonIter_init(AsonIter *self, PyObject *args, PyObject *kwds)
+{
+	PyObject *obj;
+	static char *kwlist[] = {"value", NULL};
+
+	if (! PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &obj))
+		return -1;
+
+	if (! PyObject_TypeCheck(obj, &ason_AsonType)) {
+		PyErr_Format(PyExc_TypeError,
+			     "First argument must be of type 'Ason'");
+		return -1;
+	}
+
+	self->iter = ason_iterate(((Ason *)obj)->value);
+	self->entered = 0;
+
+	switch (ason_iter_type(self->iter)) {
+	case ASON_TYPE_OBJECT:
+	case ASON_TYPE_UOBJECT:
+		self->in_object = 1;
+		break;
+	case ASON_TYPE_LIST:
+	case ASON_TYPE_UNION:
+		self->in_object = 0;
+		break;
+	default:
+		PyErr_Format(PyExc_TypeError, "ASON value is not iterable");
+		return -1;
+	};
+
+	return 0;
+}
+
+/**
+ * Get the next value for an AsonIter.
+ **/
+static PyObject *
+AsonIter_next(AsonIter *self)
+{
+	Ason *val;
+	PyObject *tuple;
+	char *str_key;
+	int got;
+
+	if (! self->entered) {
+		got = ason_iter_enter(self->iter);
+		self->entered = 1;
+	} else {
+		got = ason_iter_next(self->iter);
+	}
+
+	if (! got) /* No exception. Weird right? */
+		return NULL;
+
+	val = PyObject_New(Ason, &ason_AsonType);
+
+	if (! val)
+		return NULL;
+
+	val->value = ason_iter_value(self->iter);
+
+	if (! self->in_object)
+		return (PyObject *)val;
+
+	str_key = ason_iter_key(self->iter);
+
+	tuple = Py_BuildValue("(sO)", str_key, val);
+	Py_DECREF(val);
+	free(str_key);
+
+	return tuple;
+}
+
+/**
+ * Get an iterator for an Ason object.
+ **/
+static AsonIter *
+Ason_iterate(Ason *self)
+{
+	AsonIter *ret;
+	PyObject *args;
+	int got = 0;
+
+
+	args = Py_BuildValue("(O)", self);
+
+	if (! args)
+		return NULL;
+
+	ret = PyObject_New(AsonIter, &ason_AsonIterType);
+
+	if (ret)
+		got = AsonIter_init(ret, args, NULL);
+
+	Py_DECREF(args);
+
+	if (! got)
+		return ret;
+
+	Py_XDECREF(ret);
+
+	return NULL;
 }
 
 /**
@@ -710,11 +914,15 @@ PyInit_ason(void)
 	if (PyType_Ready(&ason_AsonType) < 0)
 		return NULL;
 
+	if (PyType_Ready(&ason_AsonIterType) < 0)
+		return NULL;
+
 	m = PyModule_Create(&asonmodule);
 	if (m == NULL)
 		return NULL;
 
 	Py_INCREF(&ason_AsonType);
+	Py_INCREF(&ason_AsonIterType);
 	PyModule_AddObject(m, "ason", (PyObject *)&ason_AsonType);
 	return m;
 }
