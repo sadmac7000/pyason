@@ -155,6 +155,8 @@ static PyObject * Ason_union(Ason *self, Ason *other);
 static PyObject * Ason_complement(Ason *self);
 static PyObject * Ason_compare(PyObject *a, PyObject *b, int op);
 static PyObject * AsonIter_next(AsonIter *self);
+static PyObject * Ason_int(Ason *self);
+static PyObject * Ason_float(Ason *self);
 
 static AsonIter * Ason_iterate(Ason *self);
 
@@ -172,6 +174,8 @@ static PyNumberMethods ason_AsonNumber = {
 	.nb_or = (binaryfunc)Ason_union,
 	.nb_and = (binaryfunc)Ason_intersect,
 	.nb_invert = (unaryfunc)Ason_complement,
+	.nb_int = (unaryfunc)Ason_int,
+	.nb_float = (unaryfunc)Ason_float,
 };
 
 /**
@@ -740,6 +744,32 @@ ason_parse(PyObject *self, PyObject *args, PyObject *kwargs)
 	Py_DECREF(ret);
 	PyErr_Format(PyExc_TypeError, "Could not parse ASON expression");
 
+	return NULL;
+}
+
+/**
+ * Convert an Ason object to a float
+ **/
+static PyObject *
+Ason_float(Ason *self)
+{
+	if (ason_type(self->value) == ASON_TYPE_NUMERIC)
+		return Py_BuildValue("d", ason_double(self->value));
+
+	PyErr_Format(PyExc_TypeError, "ASON expression must be numeric");
+	return NULL;
+}
+
+/**
+ * Convert an Ason object to an int
+ **/
+static PyObject *
+Ason_int(Ason *self)
+{
+	if (ason_type(self->value) == ASON_TYPE_NUMERIC)
+		return Py_BuildValue("L", ason_long(self->value));
+
+	PyErr_Format(PyExc_TypeError, "ASON expression must be numeric");
 	return NULL;
 }
 
