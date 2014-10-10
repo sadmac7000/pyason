@@ -940,6 +940,9 @@ PyMODINIT_FUNC
 PyInit_ason(void)
 {
 	PyObject *m;
+	Ason *empty;
+	Ason *universe;
+	Ason *wild;
 
 	if (PyType_Ready(&ason_AsonType) < 0)
 		return NULL;
@@ -951,8 +954,38 @@ PyInit_ason(void)
 	if (m == NULL)
 		return NULL;
 
+	empty = PyObject_New(Ason, &ason_AsonType);
+	if (! empty)
+		goto fail_empty;
+
+	universe = PyObject_New(Ason, &ason_AsonType);
+	if (! universe)
+		goto fail_universe;
+
+	wild = PyObject_New(Ason, &ason_AsonType);
+	if (! wild)
+		goto fail_wild;
+
+	((Ason *)universe)->value = ASON_UNIVERSE;
+	((Ason *)wild)->value = ASON_WILD;
+	((Ason *)empty)->value = ASON_EMPTY;
+
 	Py_INCREF(&ason_AsonType);
 	Py_INCREF(&ason_AsonIterType);
+
 	PyModule_AddObject(m, "ason", (PyObject *)&ason_AsonType);
+	PyModule_AddObject(m, "U", (PyObject *)universe);
+	PyModule_AddObject(m, "WILD", (PyObject *)wild);
+	PyModule_AddObject(m, "EMPTY", (PyObject *)empty);
+
 	return m;
+
+fail_wild:
+	Py_DECREF(universe);
+fail_universe:
+	Py_DECREF(empty);
+fail_empty:
+	Py_DECREF(m);
+
+	return NULL;
 }
