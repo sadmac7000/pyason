@@ -710,82 +710,56 @@ ason_parse(PyObject *self, PyObject *args, PyObject *kwargs)
 	char *string;
 	Ason *ret;
 	ason_ns_t *ns = NULL;
-	PyObject *dictitems;
 	PyObject *item;
 	PyObject *key;
 	char *str_key;
-	size_t size;
-	size_t i;
+	Py_ssize_t i;
 	ason_t *ason_item;
 
 
 	if (! PyArg_ParseTuple(args, "s", &string))
 		return NULL;
 
-	if (kwargs) {
-		dictitems = PyDict_Items(kwargs);
-		size = PyList_Size(dictitems);
+	if (! kwargs)
+		goto do_parse;
 
-		ns = ason_ns_create(ASON_NS_RAM, NULL);
-		if (! ns) {
-			PyErr_Format(PyExc_RuntimeError,
-				     "Could not create ASON namespace");
-
-			Py_DECREF(dictitems);
-			return NULL;
-		}
-
-		for (i = 0; i < size; i++) {
-			item = PyList_GetItem(dictitems, i);
-
-			if (! item)
-				break;
-
-			key = PyTuple_GetItem(item, 0);
-
-			if (! key)
-				break;
-
-			item = PyTuple_GetItem(item, 1);
-
-			if (! item)
-				break;
-
-			if (! PyUnicode_Check(key)) {
-				PyErr_Format(PyExc_TypeError,
-					     "Bad keyword list");
-				break;
-			}
-
-			str_key = PyUnicode_AsUTF8(key);
-
-			if (! str_key)
-				break;
-
-			ason_item = pyobject_to_ason(item);
-			if (ason_ns_mkvar(ns, str_key)) {
-				PyErr_Format(PyExc_RuntimeError,
-					     "mkvar error from ASON namespace");
-				break;
-			}
-
-			if (ason_ns_store(ns, str_key, ason_item)) {
-				PyErr_Format(PyExc_RuntimeError,
-					     "store error from ASON namespace");
-				break;
-			}
-		}
-
-		Py_DECREF(dictitems);
-
-		if (i != size)
-			return NULL;
+	ns = ason_ns_create(ASON_NS_RAM, NULL);
+	if (! ns) {
+		PyErr_Format(PyExc_RuntimeError,
+			     "Could not create ASON namespace");
+		return NULL;
 	}
 
+	for (i = 0; PyDict_Next(kwargs, &i, &key, &item);) {
+		if (! PyUnicode_Check(key)) {
+			PyErr_Format(PyExc_TypeError, "Bad keyword list");
+			goto kill_namespace;
+		}
+
+		str_key = PyUnicode_AsUTF8(key);
+
+		if (! str_key)
+			goto kill_namespace;
+
+		ason_item = pyobject_to_ason(item);
+		if (ason_ns_mkvar(ns, str_key)) {
+			PyErr_Format(PyExc_RuntimeError,
+				     "mkvar error from ASON namespace");
+			goto kill_namespace;
+		}
+
+		if (ason_ns_store(ns, str_key, ason_item)) {
+			PyErr_Format(PyExc_RuntimeError,
+				     "store error from ASON namespace");
+			goto kill_namespace;
+		}
+	}
+
+do_parse:
 	ret = PyObject_New(Ason, &ason_AsonType);
 
 	if (! ret)
-		return NULL;
+		goto kill_namespace;
 
 	ret->value = ason_ns_read(ns, string);
 
@@ -795,6 +769,8 @@ ason_parse(PyObject *self, PyObject *args, PyObject *kwargs)
 	Py_DECREF(ret);
 	PyErr_Format(PyExc_TypeError, "Could not parse ASON expression");
 
+kill_namespace:
+	ason_ns_destroy(ns);
 	return NULL;
 }
 
