@@ -949,7 +949,7 @@ static PyMethodDef asonmodule_methods[] = {
 	{"parse", (PyCFunction)ason_parse, METH_VARARGS | METH_KEYWORDS,
 		"Parse a string as an ASON value"},
 	{"uobject", (PyCFunction)ason_uobject, METH_VARARGS | METH_KEYWORDS,
-		"Parse a string as an ASON value"},
+		"Create a universal object ASON value"},
 	{NULL}
 };
 
