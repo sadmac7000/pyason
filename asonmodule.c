@@ -152,6 +152,7 @@ Ason_repr(Ason *self)
 
 static PyObject * Ason_intersect(Ason *self, Ason *other);
 static PyObject * Ason_union(Ason *self, Ason *other);
+static PyObject * Ason_join(Ason *self, PyObject *args);
 static PyObject * Ason_complement(Ason *self);
 static PyObject * Ason_compare(PyObject *a, PyObject *b, int op);
 static PyObject * AsonIter_next(AsonIter *self);
@@ -167,6 +168,8 @@ static int AsonIter_init(AsonIter *self, PyObject *args, PyObject *kwds);
  * Method table for ASON value object.
  **/
 static PyMethodDef Ason_methods[] = {
+	{"join", (PyCFunction)Ason_join, METH_VARARGS,
+		"Perform an ASON join"},
 	{NULL}
 };
 
@@ -901,6 +904,20 @@ static PyObject *
 Ason_intersect(Ason *self, Ason *other)
 {
 	return Ason_operate(self, other, "? & ?");
+}
+
+/**
+ * Join two Ason objects.
+ **/
+static PyObject *
+Ason_join(Ason *self, PyObject *args)
+{
+	Ason *other;
+
+	if (! PyArg_ParseTuple(args, "O", &other))
+		return NULL;
+
+	return Ason_operate(self, other, "? : ?");
 }
 
 /**
