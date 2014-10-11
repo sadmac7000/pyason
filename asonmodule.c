@@ -290,7 +290,7 @@ pyobject_to_ason(PyObject *obj)
 	ason_t *tmp1;
 	ason_t *tmp2;
 	ason_t *ret;
-	size_t i;
+	Py_ssize_t i;
 
 
 	if (PyUnicode_Check(obj)) {
@@ -401,42 +401,32 @@ retry:
 	}
 
 	if (PyDict_Check(obj)) {
-		obj = PyDict_Items(obj);
-		size = PyList_Size(obj);
-
 		ret = ason_read("{}");
 
-		for (i = 0; i < size; i++) {
-			item = PyList_GetItem(obj, i);
-
-			if (! item)
-				break;
-
-			key = PyTuple_GetItem(item, 0);
-
-			if (! key)
-				break;
-
-			item = PyTuple_GetItem(item, 1);
-
-			if (! item)
-				break;
+		for (i = 0; PyDict_Next(obj, &i, &key, &item);) {
+			if (!key || !item) {
+				ason_destroy(ret);
+				return NULL;
+			}
 
 			if (! PyUnicode_Check(key)) {
 				PyErr_Format(PyExc_TypeError,
 			     "Cannot ASONify dict with non-string keys");
-				break;
+				ason_destroy(ret);
+				return NULL;
+			}
+
+			str_key = PyUnicode_AsUTF8(key);
+			if (! key) {
+				ason_destroy(ret);
+				return NULL;
 			}
 
 			tmp1 = pyobject_to_ason(item);
 
-			if (! tmp1)
-				break;
-
-			str_key = PyUnicode_AsUTF8(key);
-			if (! key) {
-				ason_destroy(tmp1);
-				break;
+			if (! tmp1) {
+				ason_destroy(ret);
+				return NULL;
 			}
 
 			tmp2 = ret;
@@ -445,18 +435,10 @@ retry:
 			ason_destroy(tmp2);
 
 			if (! ret)
-				break;
+				return NULL;
 		}
 
-		Py_DECREF(obj);
-
-		if (i == size)
-			return ret;
-
-		if (ret)
-			ason_destroy(ret);
-
-		return NULL;
+		return ret;
 	}
 
 	if (PyObject_HasAttrString(obj, "__ason__")) {
@@ -731,6 +713,9 @@ ason_parse(PyObject *self, PyObject *args, PyObject *kwargs)
 	}
 
 	for (i = 0; PyDict_Next(kwargs, &i, &key, &item);) {
+		if (!key || !item)
+			goto kill_namespace;
+
 		if (! PyUnicode_Check(key)) {
 			PyErr_Format(PyExc_TypeError, "Bad keyword list");
 			goto kill_namespace;
