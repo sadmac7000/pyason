@@ -627,24 +627,27 @@ Ason_operate(Ason *self, Ason *other, const char *fmt)
 	Ason *ret;
 	PyObject *tmp;
 
+	ret = PyObject_New(Ason, &ason_AsonType);
+
+	if (! ret)
+		return NULL;
+
 	if (! PyObject_TypeCheck(other, &ason_AsonType)) {
 		tmp = Py_BuildValue("(O)", other);
-		if (! tmp)
+		if (! tmp) {
+			Py_DECREF(ret);
 			return NULL;
+		}
 
 		other = PyObject_New(Ason, &ason_AsonType);
 		if (! other || Ason_init(other, tmp, NULL) < 0) {
+			Py_DECREF(ret);
 			Py_DECREF(tmp);
 			return NULL;
 		}
 
 		Py_DECREF(tmp);
 	}
-
-	ret = PyObject_New(Ason, &ason_AsonType);
-
-	if (! ret)
-		return NULL;
 
 	ret->value = ason_read(fmt, self->value, other->value);
 	return (PyObject *)ret;
