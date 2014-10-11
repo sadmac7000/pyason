@@ -157,6 +157,10 @@ static PyObject * Ason_complement(Ason *self);
 static PyObject * Ason_compare(PyObject *a, PyObject *b, int op);
 static PyObject * AsonIter_next(AsonIter *self);
 static PyObject * Ason_int(Ason *self);
+static PyObject * Ason_is_numeric(Ason *self);
+static PyObject * Ason_is_string(Ason *self);
+static PyObject * Ason_is_list(Ason *self);
+static PyObject * Ason_is_object(Ason *self);
 static PyObject * Ason_float(Ason *self);
 
 static AsonIter * Ason_iterate(Ason *self);
@@ -168,8 +172,15 @@ static int AsonIter_init(AsonIter *self, PyObject *args, PyObject *kwds);
  * Method table for ASON value object.
  **/
 static PyMethodDef Ason_methods[] = {
-	{"join", (PyCFunction)Ason_join, METH_VARARGS,
-		"Perform an ASON join"},
+	{"join", (PyCFunction)Ason_join, METH_VARARGS, "Perform an ASON join"},
+	{"is_numeric", (PyCFunction)Ason_is_numeric, METH_NOARGS,
+		"Check whether this is a numeric ASON value"},
+	{"is_string", (PyCFunction)Ason_is_string, METH_NOARGS,
+		"Check whether this is a string ASON value"},
+	{"is_list", (PyCFunction)Ason_is_list, METH_NOARGS,
+		"Check whether this is a list ASON value"},
+	{"is_object", (PyCFunction)Ason_is_object, METH_NOARGS,
+		"Check whether this is an object ASON value"},
 	{NULL}
 };
 
@@ -773,6 +784,57 @@ Ason_float(Ason *self)
 
 	PyErr_Format(PyExc_TypeError, "ASON expression must be numeric");
 	return NULL;
+}
+
+/**
+ * Check whether this object is a number
+ **/
+static PyObject *
+Ason_is_numeric(Ason *self)
+{
+	if (ason_type(self->value) == ASON_TYPE_NUMERIC)
+		return Py_True;
+	else
+		return Py_False;
+}
+
+/**
+ * Check whether this object is a string
+ **/
+static PyObject *
+Ason_is_string(Ason *self)
+{
+	if (ason_type(self->value) == ASON_TYPE_STRING)
+		return Py_True;
+	else
+		return Py_False;
+}
+
+/**
+ * Check whether this object is a list
+ **/
+static PyObject *
+Ason_is_list(Ason *self)
+{
+	if (ason_type(self->value) == ASON_TYPE_LIST)
+		return Py_True;
+	else
+		return Py_False;
+}
+
+/**
+ * Check whether this object is an object 
+ **/
+static PyObject *
+Ason_is_object(Ason *self)
+{
+	ason_type_t type = ason_type(self->value);
+
+	if (type == ASON_TYPE_OBJECT ||
+	    type == ASON_TYPE_UOBJECT)
+		return Py_True;
+	else
+		return Py_False;
 }
 
 /**
