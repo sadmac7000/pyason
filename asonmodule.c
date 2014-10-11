@@ -651,6 +651,54 @@ Ason_operate(Ason *self, Ason *other, const char *fmt)
 }
 
 /**
+ * Make a universal object
+ **/
+static Ason *
+ason_uobject(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+	PyObject *dict;
+	PyObject *tmp = NULL;
+	ason_t *object;
+	ason_t *ret;
+	Ason *ret_object;
+
+	if (! PyArg_ParseTuple(args, "|O", &tmp))
+		return NULL;
+
+	dict = PyDict_New();
+
+	if (tmp && !PyDict_Check(tmp)) {
+		 if (PyDict_MergeFromSeq2(dict, tmp, 1) < 0)
+			return NULL;
+	} else if (tmp && PyDict_Update(dict, tmp) < 0) {
+		return NULL;
+	}
+
+	if (kwargs && PyDict_Update(dict, kwargs) < 0)
+		return NULL;
+
+	object = pyobject_to_ason(dict);
+	Py_DECREF(dict);
+
+	if (! object)
+		return NULL;
+
+	ret = ason_read("? : {*}", object);
+	ason_destroy(object);
+
+	ret_object = PyObject_New(Ason, &ason_AsonType);
+
+	if (! ret_object) {
+		ason_destroy(ret);
+		return NULL;
+	}
+
+	ret_object->value = ret;
+
+	return ret_object;
+}
+
+/**
  * Parse an ASON string.
  **/
 static PyObject *
@@ -918,6 +966,8 @@ Ason_complement(Ason *self)
  **/
 static PyMethodDef asonmodule_methods[] = {
 	{"parse", (PyCFunction)ason_parse, METH_VARARGS | METH_KEYWORDS,
+		"Parse a string as an ASON value"},
+	{"uobject", (PyCFunction)ason_uobject, METH_VARARGS | METH_KEYWORDS,
 		"Parse a string as an ASON value"},
 	{NULL}
 };
