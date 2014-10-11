@@ -633,12 +633,12 @@ Ason_operate(Ason *self, Ason *other, const char *fmt)
 			return NULL;
 
 		other = PyObject_New(Ason, &ason_AsonType);
-		Py_DECREF(tmp);
-		if (! other)
+		if (! other || Ason_init(other, tmp, NULL) < 0) {
+			Py_DECREF(tmp);
 			return NULL;
+		}
 
-		if (Ason_init(other, tmp, NULL) < 0)
-			return NULL;
+		Py_DECREF(tmp);
 	}
 
 	ret = PyObject_New(Ason, &ason_AsonType);
