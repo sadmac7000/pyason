@@ -62,7 +62,7 @@ PyStringType_Check(PyObject *obj)
 
 #ifdef PYTHON2
 
-PyObject *string_list = NULL;
+static PyObject *string_list = NULL;
 
 /**
  * Put a string on a list of strings we need to destroy later.
