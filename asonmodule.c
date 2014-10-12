@@ -25,6 +25,10 @@
 #include <ason/namespace.h>
 #include <ason/iter.h>
 
+#if PY_MAJOR_VERSION < 3
+#define PYTHON2
+#endif
+
 /**
  * ASON value object.
  **/
@@ -42,6 +46,88 @@ typedef struct {
 	int entered;
 	int in_object;
 } AsonIter;
+
+/**
+ * Check whether this object is of the relevant string type for our language.
+ **/
+static int
+PyStringType_Check(PyObject *obj)
+{
+#ifdef PYTHON2
+	if (PyString_Check(obj))
+		return 1;
+#endif
+	return PyUnicode_Check(obj);
+}
+
+#ifdef PYTHON2
+
+PyObject *string_list = NULL;
+
+/**
+ * Put a string on a list of strings we need to destroy later.
+ **/
+static int
+mark_string(PyObject *string)
+{
+	if (! string_list)
+		string_list = PyList_New(0);
+
+	if (! string_list)
+		return -1;
+
+	if (! PyList_Append(string_list, string))
+		return -1;
+
+	Py_DECREF(string);
+	return 0;
+}
+
+/**
+ * Get rid of used up strings
+ **/
+static void
+sweep_strings(void)
+{
+	Py_CLEAR(string_list);
+}
+
+#else
+static void
+sweep_strings(void)
+{}
+#endif
+
+/**
+ * Convert this string object to a C string.
+ **/
+static char *
+PyStringType_AsUTF8(PyObject *obj)
+{
+#ifdef PYTHON2
+	PyObject *str = NULL;
+
+	if (PyUnicode_Check(obj)) {
+		str = PyUnicode_AsUTF8String(obj);
+		if (mark_string(str) < 0) {
+			Py_DECREF(str);
+			return NULL;
+		}
+	} else if (PyString_Check(obj)) {
+		str = obj;
+	} else {
+		PyErr_Format(PyExc_TypeError,
+			     "Cannot convert type to unicode");
+	}
+
+	if (! str)
+		return NULL;
+
+	return PyString_AsString(str);
+#else
+	return PyUnicode_AsUTF8(obj);
+#endif
+}
 
 /**
  * Destroy an Ason python object.
@@ -143,7 +229,11 @@ Ason_repr(Ason *self)
 	char *data = ason_asprint_unicode(self->value);
 	char *repr;
 
-	asprintf(&repr, "ason(%s)", data);
+	if (asprintf(&repr, "ason(%s)", data) < 0) {
+		PyErr_NoMemory();
+		return NULL;
+	}
+
 	PyObject *ret = Py_BuildValue("s", repr);
 	free(data);
 	free(repr);
@@ -306,9 +396,10 @@ pyobject_to_ason(PyObject *obj)
 	ason_t *ret;
 	Py_ssize_t i;
 
+	sweep_strings();
 
-	if (PyUnicode_Check(obj)) {
-		str_key = PyUnicode_AsUTF8(obj);
+	if (PyStringType_Check(obj)) {
+		str_key = PyStringType_AsUTF8(obj);
 
 		if (! str_key)
 			return NULL;
@@ -328,7 +419,7 @@ retry:
 
 	if (PyLong_Check(obj)) {
 		ival = PyLong_AsLongLong(obj);
-
+parselong:
 		if (! PyErr_Occurred())
 			return ason_read("?I", ival);
 
@@ -349,6 +440,13 @@ retry:
 
 		return ason_read("?F", dval);
 	}
+
+#ifdef PYTHON2
+	if (PyInt_Check(obj)) {
+		ival = PyInt_AsLong(obj);
+		goto parselong;
+	}
+#endif
 
 	if (PyObject_TypeCheck(obj, &ason_AsonType))
 		return ason_copy(((Ason *)obj)->value);
@@ -423,14 +521,14 @@ retry:
 				return NULL;
 			}
 
-			if (! PyUnicode_Check(key)) {
+			if (! PyStringType_Check(key)) {
 				PyErr_Format(PyExc_TypeError,
 			     "Cannot ASONify dict with non-string keys");
 				ason_destroy(ret);
 				return NULL;
 			}
 
-			str_key = PyUnicode_AsUTF8(key);
+			str_key = PyStringType_AsUTF8(key);
 			if (! key) {
 				ason_destroy(ret);
 				return NULL;
@@ -473,8 +571,8 @@ retry:
 	if (! obj)
 		return NULL;
 
-	if (PyUnicode_Check(obj)) {
-		str_key = PyUnicode_AsUTF8(obj);
+	if (PyStringType_Check(obj)) {
+		str_key = PyStringType_AsUTF8(obj);
 
 		if (! str_key)
 			return NULL;
@@ -712,6 +810,7 @@ ason_parse(PyObject *self, PyObject *args, PyObject *kwargs)
 	Py_ssize_t i;
 	ason_t *ason_item;
 
+	sweep_strings();
 
 	if (! PyArg_ParseTuple(args, "s", &string))
 		return NULL;
@@ -730,12 +829,12 @@ ason_parse(PyObject *self, PyObject *args, PyObject *kwargs)
 		if (!key || !item)
 			goto kill_namespace;
 
-		if (! PyUnicode_Check(key)) {
+		if (! PyStringType_Check(key)) {
 			PyErr_Format(PyExc_TypeError, "Bad keyword list");
 			goto kill_namespace;
 		}
 
-		str_key = PyUnicode_AsUTF8(key);
+		str_key = PyStringType_AsUTF8(key);
 
 		if (! str_key)
 			goto kill_namespace;
@@ -1015,6 +1114,7 @@ static PyMethodDef asonmodule_methods[] = {
 	{NULL}
 };
 
+#ifndef PYTHON2
 /**
  * The ason module itself.
  **/
@@ -1025,27 +1125,42 @@ static PyModuleDef asonmodule = {
 	-1,
 	asonmodule_methods
 };
+#endif
 
 /**
  * Initialization for the ason module.
  **/
 PyMODINIT_FUNC
+#ifdef PYTHON2
+initason(void)
+#else
 PyInit_ason(void)
+#endif
 {
 	PyObject *m;
 	Ason *empty;
 	Ason *universe;
 	Ason *wild;
 
+#ifdef PYTHON2
+#define ERR_RET return
+#else
+#define ERR_RET return NULL
+#endif
+
 	if (PyType_Ready(&ason_AsonType) < 0)
-		return NULL;
+		ERR_RET;
 
 	if (PyType_Ready(&ason_AsonIterType) < 0)
-		return NULL;
+		ERR_RET;
 
+#ifdef PYTHON2
+	m = Py_InitModule("ason", asonmodule_methods);
+#else
 	m = PyModule_Create(&asonmodule);
+#endif
 	if (m == NULL)
-		return NULL;
+		ERR_RET;
 
 	empty = PyObject_New(Ason, &ason_AsonType);
 	if (! empty)
@@ -1071,7 +1186,11 @@ PyInit_ason(void)
 	PyModule_AddObject(m, "WILD", (PyObject *)wild);
 	PyModule_AddObject(m, "EMPTY", (PyObject *)empty);
 
+#ifdef PYTHON2
+	return;
+#else
 	return m;
+#endif
 
 fail_wild:
 	Py_DECREF(universe);
@@ -1080,5 +1199,6 @@ fail_universe:
 fail_empty:
 	Py_DECREF(m);
 
-	return NULL;
+	ERR_RET;
+#undef ERR_RET
 }
