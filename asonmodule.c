@@ -989,11 +989,6 @@ Ason_compare(PyObject *a, PyObject *b, int op)
 {
 	Ason *self = (Ason *)a;
 	ason_t *other;
-	int cmp;
-	char *str_a;
-	char *str_b;
-	double dbl_a;
-	double dbl_b;
 
 	if (! PyObject_TypeCheck(self, &ason_AsonType)) {
 		self = (Ason *)b;
@@ -1047,31 +1042,6 @@ Ason_compare(PyObject *a, PyObject *b, int op)
 			op = Py_GT;
 		else if (op == Py_LE)
 			op = Py_LT;
-	}
-
-	if (ason_type(self->value) == ASON_TYPE_STRING &&
-	    ason_type(other) == ASON_TYPE_STRING) {
-		str_a = ason_string(self->value);
-		str_b = ason_string(other);
-		cmp = strcmp(str_a, str_b);
-		free(str_a);
-		free(str_b);
-
-		if (cmp < 0 && op == Py_LT)
-			goto ret_true;
-		else
-			goto ret_false;
-	}
-
-	if (ason_type(self->value) == ASON_TYPE_NUMERIC &&
-	    ason_type(other) == ASON_TYPE_NUMERIC) {
-		dbl_a = ason_double(self->value);
-		dbl_b = ason_double(other);
-
-		if (dbl_a < dbl_b && op == Py_LT)
-			goto ret_true;
-		else
-			goto ret_false;
 	}
 
 	if (op == Py_LT && ason_check_represented_in(self->value, other))
