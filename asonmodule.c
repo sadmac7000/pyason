@@ -254,6 +254,7 @@ static PyObject * Ason_is_object(Ason *self);
 static PyObject * Ason_is_union(Ason *self);
 static PyObject * Ason_is_complement(Ason *self);
 static PyObject * Ason_float(Ason *self);
+static PyObject * Ason_serialize(Ason *self);
 
 static AsonIter * Ason_iterate(Ason *self);
 
@@ -277,6 +278,8 @@ static PyMethodDef Ason_methods[] = {
 		"Check whether this is a union ASON value"},
 	{"is_complement", (PyCFunction)Ason_is_complement, METH_NOARGS,
 		"Check whether this is a complement ASON value"},
+	{"serialize", (PyCFunction)Ason_serialize, METH_NOARGS,
+		"Return the ASON-formatted string representation of this value"},
 	{NULL}
 };
 
@@ -889,6 +892,19 @@ Ason_float(Ason *self)
 
 	PyErr_Format(PyExc_TypeError, "ASON expression must be numeric");
 	return NULL;
+}
+
+/**
+ * Get an Ason object as a string in ASON format
+ **/
+static PyObject *
+Ason_serialize(Ason *self)
+{
+	char *data = ason_asprint_unicode(self->value);
+	PyObject *ret = Py_BuildValue("s", data);
+
+	free(data);
+	return ret;
 }
 
 /**
