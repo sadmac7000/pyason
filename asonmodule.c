@@ -251,6 +251,8 @@ static PyObject * Ason_is_numeric(Ason *self);
 static PyObject * Ason_is_string(Ason *self);
 static PyObject * Ason_is_list(Ason *self);
 static PyObject * Ason_is_object(Ason *self);
+static PyObject * Ason_is_union(Ason *self);
+static PyObject * Ason_is_complement(Ason *self);
 static PyObject * Ason_float(Ason *self);
 
 static AsonIter * Ason_iterate(Ason *self);
@@ -271,6 +273,10 @@ static PyMethodDef Ason_methods[] = {
 		"Check whether this is a list ASON value"},
 	{"is_object", (PyCFunction)Ason_is_object, METH_NOARGS,
 		"Check whether this is an object ASON value"},
+	{"is_union", (PyCFunction)Ason_is_union, METH_NOARGS,
+		"Check whether this is a union ASON value"},
+	{"is_complement", (PyCFunction)Ason_is_complement, METH_NOARGS,
+		"Check whether this is a complement ASON value"},
 	{NULL}
 };
 
@@ -916,6 +922,30 @@ static PyObject *
 Ason_is_list(Ason *self)
 {
 	if (ason_type(self->value) == ASON_TYPE_LIST)
+		return Py_True;
+	else
+		return Py_False;
+}
+
+/**
+ * Check whether this object is a union
+ **/
+static PyObject *
+Ason_is_union(Ason *self)
+{
+	if (ason_type(self->value) == ASON_TYPE_UNION)
+		return Py_True;
+	else
+		return Py_False;
+}
+
+/**
+ * Check whether this object is a complement
+ **/
+static PyObject *
+Ason_is_complement(Ason *self)
+{
+	if (ason_type(self->value) == ASON_TYPE_UNION)
 		return Py_True;
 	else
 		return Py_False;
