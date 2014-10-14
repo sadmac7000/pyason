@@ -1002,19 +1002,20 @@ Ason_compare(PyObject *a, PyObject *b, int op)
 				     "Ason comparator called on non-Ason value");
 
 		if (op == Py_LT)
-			op = Py_GT;
-		if (op == Py_GT)
-			op = Py_LT;
-		if (op == Py_LE)
 			op = Py_GE;
-		if (op == Py_GE)
+		if (op == Py_GT)
 			op = Py_LE;
+		if (op == Py_LE)
+			op = Py_GT;
+		if (op == Py_GE)
+			op = Py_LT;
 
 		other = pyobject_to_ason(a);
 	} else {
 		other = pyobject_to_ason(b);
 	}
 
+	/* Error would be from pyobject_to_ason */
 	if (PyErr_Occurred()) {
 		PyErr_Clear();
 
