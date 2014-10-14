@@ -294,7 +294,7 @@ static PyMethodDef AsonIter_methods[] = {
  **/
 static PyTypeObject ason_AsonType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	"ason.Ason",
+	"ason.ason",
 	sizeof(Ason),
 	0,
 	(destructor)Ason_dealloc,
