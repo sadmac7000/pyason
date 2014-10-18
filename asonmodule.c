@@ -423,7 +423,9 @@ retry:
 
 	if (PyLong_Check(obj)) {
 		ival = PyLong_AsLongLong(obj);
+#ifdef PYTHON2
 parselong:
+#endif
 		if (! PyErr_Occurred())
 			return ason_read("?I", ival);
 
