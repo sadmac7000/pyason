@@ -36,6 +36,25 @@ operator can be accessed with the :py:meth:`ason.join` method. All operators
 will attempt to promote the right-hand operand to an :py:class:`ason.ason`
 object, so ``ason(6) | 7`` should yield ``ason(6 ∪ 7)``.
 
+The :py:class:`ason` class is also iterable and castable to many types, which
+can be used to extract ASON values as python values. Example:
+
+        >>> list(ason.parse("6"))
+        [ason(6)]
+        >>> list(ason.parse("6 | 7"))
+        [ason(6), ason(7)]
+        >>> list(ason.parse("[6,7]"))
+        [ason(6), ason(7)]
+        >>> dict(ason.parse('{"foo":6, "bar":7, *}'))
+        {'foo': ason(6), 'bar': ason(7)}
+        >>> str(ason.ason("hi"))
+        'hi'
+        >>> str(ason.ason(6))
+          TypeError: ASON type is not a string
+        >>> int(ason.ason(7))
+        7L
+
+
 Functions
 =========
 .. autofunction:: parse(string, \**args)
