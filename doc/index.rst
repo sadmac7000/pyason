@@ -32,7 +32,9 @@ ASON operations are all mapped to Python operators.
 Also supported is the ``&`` operator for ASON intersection. Comparison maps
 representation to equality, with ``a <= b`` indicating ``a`` is represented in
 ``b``. This is designed to mirror Python's :py:class:`set` class. The join
-operator can be accessed with the :py:meth:`ason.join` method.
+operator can be accessed with the :py:meth:`ason.join` method. All operators
+will attempt to promote the right-hand operand to an :py:class:`ason.ason`
+object, so ``ason(6) | 7`` should yield ``ason(6 ∪ 7)``.
 
 Functions
 =========
