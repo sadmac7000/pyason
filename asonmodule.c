@@ -1122,9 +1122,17 @@ Ason_complement(Ason *self)
  **/
 static PyMethodDef asonmodule_methods[] = {
 	{"parse", (PyCFunction)ason_parse, METH_VARARGS | METH_KEYWORDS,
-		"Parse a string as an ASON value"},
+		"Parse a string as an ASON value. The full ASON syntax is "
+		"supported, and you can use variables, whose valuese are "
+		"provided with keyword arguments. For example, "
+		"``ason.parse('{\"foo\": bar}', bar = 6)`` would yield "
+		"``ason({ \"foo\": 6 })``."},
 	{"uobject", (PyCFunction)ason_uobject, METH_VARARGS | METH_KEYWORDS,
-		"Create a universal object ASON value"},
+		"Create a universal object ASON value. The signature is "
+		"effectively identical to Python's :py:class:`dict`, and "
+		"returns a similar result to ``ason(dict(...))`` except that "
+		"the represented ASON value is a universal, rather than a "
+		"normal object." },
 	{NULL}
 };
 

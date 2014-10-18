@@ -64,7 +64,9 @@ Functions
 The ason class
 ==============
 .. autoclass:: ason
-   :members:
+   :members: is_complement, is_list, is_numeric, is_object, is_string, is_union, serialize
+
+   .. automethod:: join(other)
 
 Constants
 =========
