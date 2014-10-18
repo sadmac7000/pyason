@@ -3,20 +3,46 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. currentmodule:: ason
+
 Welcome to pyason's documentation!
 ==================================
 
-Contents:
+``pyason`` is a library for manipulating ASON [#f1]_ values in python.
 
-.. toctree::
-   :maxdepth: 2
+``pyason`` provides the :py:mod:`ason` module, which, in turn, provides a
+:py:func:`parse` function for parsing ASON values and the :py:class:`ason`
+constructor for converting Python values to ASON.
 
+ASON values are manipulated as objects of type :py:class:`ason`. Standard
+ASON operations are all mapped to Python operators.
 
+        >>> from ason import ason
+        >>> a = ason(6)
+        >>> b = ason("bob")
+        >>> a
+        ason(6)
+        >>> b
+        ason("bob")
+        >>> a | b
+        ason(6 ∪ "bob")
+        >>> ~a
+        ason(!6)
 
-Indices and tables
-==================
+Also supported is the ``&`` operator for ASON intersection. Comparison maps
+representation to equality, with ``a <= b`` indicating ``a`` is represented in
+``b``. This is designed to mirror Python's :py:class:`set` class. The join
+operator can be accessed with the :py:meth:`ason.join` method.
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Functions
+=========
+.. autofunction:: parse(string, \**args)
 
+.. autofunction:: uobject(value, \**args)
+
+The ason class
+==============
+.. autoclass:: ason
+   :members:
+
+.. [#f1] http://www.americanteeth.org/libason/ason_spec.pdf
