@@ -45,6 +45,7 @@ typedef struct {
 	ason_iter_t *iter;
 	int entered;
 	int in_object;
+	int halt;
 } AsonIter;
 
 /**
@@ -180,6 +181,7 @@ AsonIter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 	self->iter = NULL;
 	self->entered = 0;
+	self->halt = 0;
 	self->in_object = 0;
 
 	return (PyObject *)self;
@@ -612,25 +614,22 @@ AsonIter_init(AsonIter *self, PyObject *args, PyObject *kwds)
 
 	if (! PyObject_TypeCheck(obj, &ason_AsonType)) {
 		PyErr_Format(PyExc_TypeError,
-			     "First argument must be of type 'Ason'");
+			     "Argument must be of type 'ason'");
 		return -1;
 	}
 
 	self->iter = ason_iterate(((Ason *)obj)->value);
 	self->entered = 0;
+	self->halt = 0;
 
 	switch (ason_iter_type(self->iter)) {
 	case ASON_TYPE_OBJECT:
 	case ASON_TYPE_UOBJECT:
 		self->in_object = 1;
 		break;
-	case ASON_TYPE_LIST:
-	case ASON_TYPE_UNION:
+	default:
 		self->in_object = 0;
 		break;
-	default:
-		PyErr_Format(PyExc_TypeError, "ASON value is not iterable");
-		return -1;
 	};
 
 	return 0;
@@ -648,9 +647,21 @@ AsonIter_next(AsonIter *self)
 	int got;
 
 	if (! self->entered) {
-		got = ason_iter_enter(self->iter);
 		self->entered = 1;
+
+		switch (ason_iter_type(self->iter)) {
+		case ASON_TYPE_OBJECT:
+		case ASON_TYPE_UOBJECT:
+		case ASON_TYPE_LIST:
+		case ASON_TYPE_UNION:
+			got = ason_iter_enter(self->iter);
+			break;
+		default:
+			got = 1;
+			self->halt = 1;
+		};
 	} else {
+		/* Yes, this works in the non-collection case */
 		got = ason_iter_next(self->iter);
 	}
 
