@@ -46,6 +46,7 @@ typedef struct {
 	int entered;
 	int in_object;
 	int halt;
+	int enter_union;
 } AsonIter;
 
 /**
@@ -182,6 +183,7 @@ AsonIter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	self->iter = NULL;
 	self->entered = 0;
 	self->halt = 0;
+	self->enter_union = 0;
 	self->in_object = 0;
 
 	return (PyObject *)self;
@@ -241,6 +243,7 @@ static PyObject * Ason_is_list(Ason *self);
 static PyObject * Ason_is_object(Ason *self);
 static PyObject * Ason_is_union(Ason *self);
 static PyObject * Ason_is_complement(Ason *self);
+static PyObject * Ason_iter_union(Ason *self);
 static PyObject * Ason_float(Ason *self);
 static PyObject * Ason_serialize(Ason *self);
 
@@ -269,6 +272,9 @@ static PyMethodDef Ason_methods[] = {
 		"Check whether this is a complement ASON value"},
 	{"serialize", (PyCFunction)Ason_serialize, METH_NOARGS,
 		"Return the ASON-formatted string representation of this value"},
+	{"iter_union", (PyCFunction)Ason_iter_union, METH_NOARGS,
+		"Return an iterator that will iterate over individual items "
+		"in a union"},
 	{NULL}
 };
 
@@ -622,6 +628,7 @@ AsonIter_init(AsonIter *self, PyObject *args, PyObject *kwds)
 	self->iter = ason_iterate(((Ason *)obj)->value);
 	self->entered = 0;
 	self->halt = 0;
+	self->enter_union = 0;
 
 	switch (ason_iter_type(self->iter)) {
 	case ASON_TYPE_OBJECT:
@@ -646,17 +653,21 @@ AsonIter_next(AsonIter *self)
 	PyObject *tuple;
 	char *str_key;
 	int got;
+	ason_type_t type = ason_iter_type(self->iter);
 
 	if (! self->entered) {
 		self->entered = 1;
 
-		switch (ason_iter_type(self->iter)) {
+		switch (type) {
 		case ASON_TYPE_OBJECT:
 		case ASON_TYPE_UOBJECT:
 		case ASON_TYPE_LIST:
 		case ASON_TYPE_UNION:
-			got = ason_iter_enter(self->iter);
-			break;
+			if ((type != ASON_TYPE_UNION) == (!self->enter_union)) {
+				got = ason_iter_enter(self->iter);
+				break;
+			}
+		/* fall-thru*/
 		default:
 			got = 1;
 			self->halt = 1;
@@ -913,6 +924,20 @@ Ason_serialize(Ason *self)
 
 	free(data);
 	return ret;
+}
+
+/**
+ * Get an AsonIter object that iterates unions.
+ **/
+static PyObject *
+Ason_iter_union(Ason *self)
+{
+	AsonIter *ret = Ason_iterate(self);
+
+	if (ret)
+		ret->enter_union = 1;
+
+	return (PyObject *)ret;
 }
 
 /**

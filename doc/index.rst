@@ -41,8 +41,6 @@ can be used to extract ASON values as python values. Example:
 
         >>> list(ason.parse("6"))
         [ason(6)]
-        >>> list(ason.parse("6 | 7"))
-        [ason(6), ason(7)]
         >>> list(ason.parse("[6,7]"))
         [ason(6), ason(7)]
         >>> dict(ason.parse('{"foo":6, "bar":7, *}'))
@@ -64,7 +62,7 @@ Functions
 The ason class
 ==============
 .. autoclass:: ason
-   :members: is_complement, is_list, is_numeric, is_object, is_string, is_union, serialize
+   :members: is_complement, is_list, is_numeric, is_object, is_string, is_union, serialize, iter_union
 
    .. automethod:: join(other)
 
