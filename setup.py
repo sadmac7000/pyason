@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2013, 2014 Red Hat, Casey Dahlin <casey.dahlin@gmail.com>
+# Copyright © 2014 Casey Dahlin <casey.dahlin@gmail.com>
 #
 # This file is part of pyason.
 #
