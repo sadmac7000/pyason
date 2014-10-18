@@ -245,6 +245,7 @@ static PyObject * Ason_float(Ason *self);
 static PyObject * Ason_serialize(Ason *self);
 
 static AsonIter * Ason_iterate(Ason *self);
+static AsonIter * AsonIter_iterate(AsonIter *self);
 
 static int Ason_init(Ason *self, PyObject *args, PyObject *kwds);
 static int AsonIter_init(AsonIter *self, PyObject *args, PyObject *kwds);
@@ -359,7 +360,7 @@ static PyTypeObject ason_AsonIterType = {
 	0,
 	0,
 	0,
-	0,
+	(getiterfunc)AsonIter_iterate,
 	(iternextfunc)AsonIter_next,
 	AsonIter_methods,
 	0, /* members */
@@ -716,6 +717,16 @@ Ason_iterate(Ason *self)
 	Py_XDECREF(ret);
 
 	return NULL;
+}
+
+/**
+ * Get an iterator for an AsonIter object.
+ **/
+static AsonIter *
+AsonIter_iterate(AsonIter *self)
+{
+	Py_INCREF(self);
+	return self;
 }
 
 /**
