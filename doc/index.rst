@@ -66,4 +66,18 @@ The ason class
 .. autoclass:: ason
    :members:
 
+Constants
+=========
+.. py:data:: U
+
+   The ASON Universe value ("``U``") as an :py:class:`ason` object
+
+.. py:data:: WILD
+
+   The ASON Wild value ("``*``")as an :py:class:`ason` object
+
+.. py:data:: EMPTY
+
+   The ASON Empty value (∅) as an :py:class:`ason` object
+
 .. [#f1] http://www.americanteeth.org/libason/ason_spec.pdf
